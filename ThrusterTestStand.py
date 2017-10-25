@@ -3,17 +3,20 @@ import time
 import csv
 import sys
 
-def save(data):
-    with open('heave_stbd_aft.csv', 'wb') as file:
+def save(filename, data):
+    with open(filename, 'wb') as file:
         file.write('Time(ms),PWM(um),Measured Force(lbs)\n')
         for row in data:
             file.write(row)
 
 def main():
+    COM_PORT = '/dev/ttyACM1'
+    FILE_NAME = 'thrust.csv'
+
     testEnabled = True
     testRunning = False
     dataList = []
-    ser = serial.Serial('/dev/ttyACM1', baudrate=9600, timeout=None)
+    ser = serial.Serial(COM_PORT, baudrate=9600, timeout=None)
     if ser is not None:
         print("Found device. Awaiting test start...\n")
         while testEnabled:
@@ -31,7 +34,7 @@ def main():
                     testRunning = False
                     testEnabled = False
                     print('Test finished. Saving...')
-                    save(dataList)
+                    save(FILE_NAME, dataList)
                     sys.exit()
                 else:
                     print(data)

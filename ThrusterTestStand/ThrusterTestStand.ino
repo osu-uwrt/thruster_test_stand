@@ -17,7 +17,7 @@
 
 // Test parameters
 int NUM_TEST_POINTS = 5; // Number of PWMs to test in each operation mode (forward/reverse)
-long STEP_DURATION = 2000; // Duration of each PWM step (how long we write each PWM)
+long STEP_DURATION = 2000; // Duration of each PWM step (how long we write each PWM), milliseconds
 int SAMPLE_FREQUENCY = 3; // Number of samples to take at each PWM step
 
 // Arduino parameters
