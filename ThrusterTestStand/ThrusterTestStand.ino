@@ -1,6 +1,15 @@
-// Use Arduino servo library to control the ESC speed controller
-#include <Servo.h>
-#include <DebouncedInput.h>
+// Thruster Test Stand v2.0
+// Author: Benji Justice (justice.251@osu.edu)
+//
+// The Ohio State University
+// Underwater Robotics Team
+
+// Uncomment the following line to enable serial output
+//#define SERIAL_DEBUG
+
+#include <Servo.h>              // Arduino servo library for sending PWM
+#include <DebouncedInput.h>     // Custom library for debounced inputs
+#include <SD.h>                 // Arduino SD card library for datalogging
 
 /****************************
  * TEST & CIRCUIT PARAMETERS
@@ -8,17 +17,18 @@
 
 // Test parameters
 int NUM_TEST_POINTS = 5; // Number of PWMs to test in each operation mode (forward/reverse)
-long STEP_DURATION = 2000; // Duration of each PWM step
+long STEP_DURATION = 2000; // Duration of each PWM step (how long we write each PWM)
 int SAMPLE_FREQUENCY = 3; // Number of samples to take at each PWM step
 
 // Arduino parameters
-float ARDUINO_VOLT_PER_BIT = (5.0/1023.0); // Arduino has a 10-byte 5V ADC
+float ARDUINO_VOLT_PER_BIT = (5.0/1023.0); // Arduino has a 10-byte 5V ADC (V/Bit)
 
-// Pins
+// Pin Definitions
 int ARM_SWITCH_PIN = 2;
 int START_BUTTON_PIN = 3;
 int STOP_BUTTON_PIN = 4;
 int LOAD_CELL_ANALOG_PIN = 0;
+int SD_SHIELD_PIN = 10;
 
 // Load cell calibration parameters
 float LOAD_CELL_LB_PER_VOLT = (50.0 / 4.0); // Pounds per volt
@@ -50,6 +60,9 @@ bool _testRunning = false; // Keeps track of whether or not the test is running
 // Resets at end of test.
 int _currentPeriod = 0;
 
+// File object to write data to
+File logfile;
+
 // Timing variables
 long _previousStepEndTime; // Time the last PWM step ended
 long _previousSampleTime; // Time the last sample was taken
@@ -69,6 +82,7 @@ void readAndLog();
 void testThruster();
 void stopTest();
 void startTest();
+void error(char* msg);
 
 /***************/
 /* Setup       */
@@ -76,9 +90,40 @@ void startTest();
 void setup() {
   Serial.begin(SERIAL_BAUD_RATE); // Establish serial connection
 
+  pinMode(SD_SHIELD_PIN, OUTPUT);
+  pinMode(LED_BUILTIN, OUTPUT);
+
+  // Setup the SD card
+  if (!SD.begin(SD_SHIELD_PIN)) {
+    error("Card failed, or not present.");
+  }
+
+  // Create new file on SD card
+  // There is some logic in here to increment the filename if a previous file exists
+  // TODO: These files should be named for each thruster eventually, perhaps
+  //       set a DIP switch or something on the box.
+  char filename[] = "TESTSTAND00.CSV";
+  for (uint8_t i = 0; i < 100; i++) {
+    filename[6] = i/10 + '0';
+    filename[7] = i%10 + '0';
+    if (! SD.exists(filename)) {
+      // only open a new file if it doesn't exist
+      logfile = SD.open(filename, FILE_WRITE);
+      break;  // leave the loop!
+    }
+  }
+
+  // Don't continue without that file
+  if (!logfile) {
+    error("Couldn't create log file.");
+  }
+
+  // Print log file header
+  logfile.println("time,PWM,force");
+
   _thruster.attach(THRUSTER_PIN);  // Tell Arduino what pin the thruster is on
   _thruster.writeMicroseconds(ZERO_PWM); // Write 0 pwm to thruster on start up
-  delay(1000);
+  delay(1000); // Wait a sec.
 
   // Setup arm switch and buttons
   pinMode(ARM_SWITCH_PIN, INPUT);
@@ -120,7 +165,9 @@ void loop(){
 void startTest() {
   _testRunning = true;
   _previousStepEndTime = millis();
+#ifdef SERIAL_DEBUG
   Serial.println(START_BYTES);
+#endif
 }
 
 // Stops the thruster and resets the test variables
@@ -130,10 +177,14 @@ void stopTest() {
   delay(1000);
 
   // Reset ALL the things.
-  Serial.println(END_BYTES);
+
   _currentPeriod = ZERO_PWM;
   _currentPWM = ZERO_PWM;
   _testRunning = false;
+
+#ifdef SERIAL_DEBUG
+  Serial.println(END_BYTES);
+#endif
 }
 
 // Runs the thruster, sets PWMs, and logs the data based on the currentTime.
@@ -180,6 +231,16 @@ void testThruster(long currentTime) {
   }
 }
 
+void error(char* msg) {
+  Serial.println(msg);
+  while (1) {
+    digitalWrite(LED_BUILTIN, HIGH);
+    delay(500);
+    digitalWrite(LED_BUILTIN, LOW);
+    delay(500);
+  }
+}
+
 // Prints the force, PWM, and time over serial
 // Eventually we'll read current and temperature etc
 void readAndLog(long time) {
@@ -187,13 +248,21 @@ void readAndLog(long time) {
   int senseValue = analogRead(LOAD_CELL_ANALOG_PIN);
 
   // Read force
-  float loadCellVoltage = senseValue * ARDUINO_VOLT_PER_DIV;
+  float loadCellVoltage = senseValue * ARDUINO_VOLT_PER_BIT;
   float loadCellForce = ((loadCellVoltage - LOAD_CELL_VOLT_OFFSET) * LOAD_CELL_LB_PER_VOLT) - LOAD_CELL_FORCE_OFFSET;
 
+  logfile.print(time);
+  logfile.print(',');
+  logfile.print(_currentPWM);
+  logfile.print(',');
+  logfile.println(loadCellForce);
+
+#ifdef SERIAL_DEBUG
   // Transmit data over serial
   Serial.print(time);
   Serial.print(',');
   Serial.print(_currentPWM);
   Serial.print(',');
   Serial.println(loadCellForce);
+#endif
 }
