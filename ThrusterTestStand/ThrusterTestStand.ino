@@ -10,13 +10,13 @@
 #include <Servo.h>              // Arduino servo library for sending PWM
 #include <DebouncedInput.h>     // Custom library for debounced inputs
 #include <SD.h>                 // Arduino SD card library for datalogging
-
+#define SERIAL_DEBUG
 /****************************
  * TEST & CIRCUIT PARAMETERS
  ****************************/
 
 // Test parameters
-int NUM_TEST_POINTS = 5; // Number of PWMs to test in each operation mode (forward/reverse)
+int NUM_TEST_POINTS = 20; // Number of PWMs to test in each operation mode (forward/reverse)
 long STEP_DURATION = 2000; // Duration of each PWM step (how long we write each PWM), milliseconds
 int SAMPLE_FREQUENCY = 3; // Number of samples to take at each PWM step
 
@@ -33,12 +33,12 @@ int SD_SHIELD_PIN = 10;
 // Load cell calibration parameters
 float LOAD_CELL_LB_PER_VOLT = (50.0 / 4.0); // Pounds per volt
 float LOAD_CELL_VOLT_OFFSET = 0.5; // Voltage at 0 force
-float LOAD_CELL_FORCE_OFFSET = 21.57; // Initial force on the load cell
+float LOAD_CELL_FORCE_OFFSET = 26.25; // Initial force on the load cell
 
 // Thruster PWM constants
 int ZERO_PWM = 1500;
-int MAX_PWM = 1900;
-int MIN_PWM = 1100;
+int MAX_PWM = 1700;
+int MIN_PWM = 1300;
 
 /*************
  * VARIABLES
@@ -90,9 +90,9 @@ void error(char* msg);
 void setup() {
   Serial.begin(SERIAL_BAUD_RATE); // Establish serial connection
 
-  pinMode(SD_SHIELD_PIN, OUTPUT);
+  //pinMode(SD_SHIELD_PIN, OUTPUT);
   pinMode(LED_BUILTIN, OUTPUT);
-
+/*
   // Setup the SD card
   if (!SD.begin(SD_SHIELD_PIN)) {
     error("Card failed, or not present.");
@@ -120,7 +120,7 @@ void setup() {
 
   // Print log file header
   logfile.println("time,PWM,force");
-
+*/
   _thruster.attach(THRUSTER_PIN);  // Tell Arduino what pin the thruster is on
   _thruster.writeMicroseconds(ZERO_PWM); // Write 0 pwm to thruster on start up
   delay(1000); // Wait a sec.
@@ -136,6 +136,7 @@ void setup() {
 /* Main Loop   */
 /***************/
 void loop(){
+
   // Read the arm switch :)
   bool testArmed = _armSwitch.Read();
 
@@ -250,13 +251,13 @@ void readAndLog(long time) {
   // Read force
   float loadCellVoltage = senseValue * ARDUINO_VOLT_PER_BIT;
   float loadCellForce = ((loadCellVoltage - LOAD_CELL_VOLT_OFFSET) * LOAD_CELL_LB_PER_VOLT) - LOAD_CELL_FORCE_OFFSET;
-
+/*
   logfile.print(time);
   logfile.print(',');
   logfile.print(_currentPWM);
   logfile.print(',');
   logfile.println(loadCellForce);
-
+*/
 #ifdef SERIAL_DEBUG
   // Transmit data over serial
   Serial.print(time);

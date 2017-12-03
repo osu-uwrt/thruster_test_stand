@@ -10,15 +10,18 @@ def save(filename, data):
             file.write(row)
 
 def main():
-    COM_PORT = '/dev/ttyACM1'
-    FILE_NAME = 'thrust.csv'
+    COM_PORT = '/dev/ttyACM0'
+    print("Let's test some thrusters, shall we? Tell me, which thruster are you testing?")
+    FNAME = str(raw_input())
+    print("Fantastic choice! I just love " + FNAME + "! Well, let's see if we can't find the Test Stand...\n")
+    FNAME = FNAME + ".csv"
 
     testEnabled = True
     testRunning = False
     dataList = []
     ser = serial.Serial(COM_PORT, baudrate=9600, timeout=None)
     if ser is not None:
-        print("Found device. Awaiting test start...\n")
+        print("Aha! I found it. Now, what are you waiting for? Start the test!\n")
         while testEnabled:
             data = ser.readline()
             data = data[:-1]
@@ -34,7 +37,8 @@ def main():
                     testRunning = False
                     testEnabled = False
                     print('Test finished. Saving...')
-                    save(FILE_NAME, dataList)
+                    save(FNAME, dataList)
+                    print("Test data saved to " + FNAME + "! It's been a pleasure working with you. Cheers!")
                     sys.exit()
                 else:
                     print(data)
